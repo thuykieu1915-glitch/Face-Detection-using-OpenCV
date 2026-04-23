@@ -1,88 +1,76 @@
 # ===============================
-# Iris Classification Project
+# Face Detection Project
 # ===============================
 
-# 1. Import libraries
-import numpy as np
-import pandas as pd
+try:
+    import cv2
+except ModuleNotFoundError:
+    print("Missing dependency: opencv-python is not installed in this environment.")
+    print("Install it with: pip install opencv-python")
+    exit(1)
 
-from sklearn.datasets import load_iris
-from sklearn.model_selection import train_test_split
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
-
-
-# 2. Load dataset
-iris = load_iris()
-
-# Features (X) and labels (y)
-X = iris.data
-y = iris.target
-
-print("Dataset loaded successfully!")
-print("Feature shape:", X.shape)
-print("Classes:", iris.target_names)
-
-
-# 3. Split data into training and testing
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y,
-    test_size=0.2,
-    random_state=42
+# Load Haar Cascade model
+face_cascade = cv2.CascadeClassifier(
+    cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
 )
 
-print("\nData split completed!")
-print("Training size:", len(X_train))
-print("Testing size:", len(X_test))
+if face_cascade.empty():
+    print("Error loading face detection model")
+    exit()
 
+print("Model loaded successfully!")
 
-# 4. Create model
-model = DecisionTreeClassifier()
+# Start webcam
+cap = cv2.VideoCapture(0)
 
-# 5. Train model
-model.fit(X_train, y_train)
+if not cap.isOpened():
+    print("Cannot open webcam")
+    exit()
 
-print("\nModel training completed!")
-
-
-# 6. Make predictions
-y_pred = model.predict(X_test)
-
-
-# 7. Evaluate model
-accuracy = accuracy_score(y_test, y_pred)
-print("\nModel Evaluation:")
-print("Accuracy:", accuracy)
-
-print("\nConfusion Matrix:")
-print(confusion_matrix(y_test, y_pred))
-
-print("\nClassification Report:")
-print(classification_report(y_test, y_pred))
-
-
-# 8. Predict new sample
-print("\n--- Test with new input ---")
+print("Press 'q' to quit")
 
 while True:
-    try:
-        print("\nEnter flower features:")
+    ret, frame = cap.read()
 
-        sepal_length = float(input("Sepal length: "))
-        sepal_width = float(input("Sepal width: "))
-        petal_length = float(input("Petal length: "))
-        petal_width = float(input("Petal width: "))
-
-        sample = np.array([[sepal_length, sepal_width, petal_length, petal_width]])
-
-        prediction = model.predict(sample)
-        flower_name = iris.target_names[prediction][0]
-
-        print("Predicted class:", flower_name)
-
-    except:
-        print("Invalid input! Try again.")
-
-    cont = input("Continue? (y/n): ")
-    if cont.lower() != "y":
+    if not ret:
+        print("Failed to read frame")
         break
+
+    # Convert to grayscale
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    # Detect faces
+    faces = face_cascade.detectMultiScale(
+        gray,
+        scaleFactor=1.3,
+        minNeighbors=5
+    )
+
+    # Draw rectangles
+    for (x, y, w, h) in faces:
+        cv2.rectangle(
+            frame,
+            (x, y),
+            (x + w, y + h),
+            (0, 255, 0),
+            2
+        )
+
+        cv2.putText(
+            frame,
+            "Face",
+            (x, y - 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (0, 255, 0),
+            2
+        )
+
+    cv2.imshow("Face Detection", frame)
+
+    # Press 'q' to exit
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
